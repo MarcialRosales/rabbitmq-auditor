@@ -1,0 +1,7 @@
+spring:
+  rabbitmq:
+    addresses: localhost:5673
+    username: guest
+    password: guest
+    virtual-host: /
+    admin: localhost:15673
