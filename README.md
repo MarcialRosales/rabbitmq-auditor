@@ -65,3 +65,21 @@ d. If we deploy this tool on PCF, check out the manifest.yml and see how you can
     PLAN_MAX_MESSAGE_TTL: 60000
     PLAN_MAX_SLAVES: 1
  ```
+ 
+##How to use this tool
+First of all, we want to build it: 
+```  
+mvn install
+```  
+
+Second, we want to run it and here we can either run in PCF or standalone. To run it in PCF, we first amend the manifest.yml file with the location and credentials of RabbitMQ and deploy this application in PCF using the manifest. This is the ideal setup because PCF will make sure this application is always running and enforcing the plan.
+```  
+cf push
+```  
+However, we can run the application in standalone mode too just to try it out.
+```  
+java -DPLAN_ALLOW_MIRROR_QUEUES=false -DPLAN_MAX_QUEUE_LENGTH=3500 -DSPRING_RABBITMQ_USERNAME=admin -DSPRING_RABBITMQ_PASSWORD=admin -jar target/rabbitmq-auditor-0.0.1-SNAPSHOT.jar
+```  
+
+
+ 
