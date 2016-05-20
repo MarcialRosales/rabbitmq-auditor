@@ -12,8 +12,8 @@ The principle is simple.
  - The tool detects when a new vhost is created, and it creates the "_plan" policy on that vhost.
  
 When a policy is not compliant?
- -If we have a max-queue-length = 1000 and the policy has not defined that parameter with that value or the policy has that parameter with a smaller value, the policy is not compliant and the tool will override it.
- -If we have a policy with mirroring turned on (e.g. ha-mode=all) and mirroring is not allowed, the tool will automatically remove the mirroring parameters from the policy.
- -If we have a policy with mirroring turned on with a larger number of slaves to the allowed value, the tool automatically overrides the policy so that it only has the allowed number of slaves.
+ - If we have a max-queue-length = 1000 and the policy has not defined that parameter with that value or the policy has that parameter with a smaller value, the policy is not compliant and the tool will override it.
+ - If we have a policy with mirroring turned on (e.g. ha-mode=all) and mirroring is not allowed, the tool will automatically remove the mirroring parameters from the policy.
+ - If we have a policy with mirroring turned on with a larger number of slaves to the allowed value, the tool automatically overrides the policy so that it only has the allowed number of slaves.
  
        
