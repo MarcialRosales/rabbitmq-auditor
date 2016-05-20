@@ -1,7 +1,20 @@
+logging:
+  level:
+    io.pivotal.demo.PolicyEnforceService: debug
+    
 spring:
   rabbitmq:
     addresses: localhost:5673
     username: guest
     password: guest
-    virtual-host: /
-    admin: localhost:15673
+    admin: http://localhost:15673
+    
+    
+plan:
+  name: _plan
+  allow-mirror-queues: true
+  max-slaves: 1
+  maxMessageTTL: 60000
+  max-queue-length: 2000
+  max-queue-length-bytes: 7000
+  
