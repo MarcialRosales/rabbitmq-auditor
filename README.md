@@ -29,7 +29,7 @@ spring:
     admin: http://localhost:15673
 ```
 
-b. We need to configure the plan's settings via the application.yml.
+b. We need to configure the plan's settings via the application.yml. 
 ```    
 plan:
   name: _plan					# Name of the plan's policy
@@ -40,7 +40,16 @@ plan:
   max-queue-length-bytes: 7000  # all queues' max length in bytes
 ```
 
-c. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
+c. If we only wanted to enforce queue length in bytes and no mirroring, we would need this configuration:
+```    
+plan:
+  name: _plan					
+  allow-mirror-queues: false	   # do not allow mirroring
+  max-queue-length-bytes: 1048576  # maximum size for all queues
+```
+ 
+
+d. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
 
 ```  
  ....
