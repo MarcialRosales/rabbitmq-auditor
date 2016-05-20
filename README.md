@@ -41,3 +41,18 @@ plan:
 ```
 
 3. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
+
+```  
+ ....
+ env:
+    SPRING_RABBITMQ_ADDRESSES: localhost:5673
+    SPRING_RABBITMQ_USERNAME: admin
+    SPRING_RABBITMQ_PASSWORD: admin
+    SPRING_RABBITMQ_ADMIN: http://localhost:15673
+    
+    PLAN_ALLOW_MIRROR_QUEUES: false
+    PLAN_MAX_QUEUE_LENGTH: 10000
+    PLAN_MAX_QUEUE_LENGTH_BYTES: 100000
+    PLAN_MAX_MESSAGE_TTL: 60000
+    PLAN_MAX_SLAVES: 1
+ ```
