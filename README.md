@@ -19,7 +19,7 @@ The tool allows an administrator user (configured in application.yml) to define 
        
 ##Configuration
 
-1. We need to configure the location of RabbitMq and the credentials of an administrator user and the url of the management console. Check out application.yml file.
+a. We need to configure the location of RabbitMq and the credentials of an administrator user and the url of the management console. Check out application.yml file.
 ```
 spring:
   rabbitmq:
@@ -29,7 +29,7 @@ spring:
     admin: http://localhost:15673
 ```
 
-2. We need to configure the plan's settings via the application.yml.
+b. We need to configure the plan's settings via the application.yml.
 ```    
 plan:
   name: _plan					# Name of the plan's policy
@@ -40,7 +40,7 @@ plan:
   max-queue-length-bytes: 7000  # all queues' max length in bytes
 ```
 
-3. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
+c. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
 
 ```  
  ....
