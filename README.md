@@ -16,6 +16,9 @@ The tool allows an administrator user (configured in application.yml) to define 
  - If we have a policy with mirroring turned on (e.g. ha-mode=all) and mirroring is not allowed, the tool will automatically remove the mirroring parameters from the policy.
  - If we have a policy with mirroring turned on with a larger number of slaves to the allowed value, the tool automatically overrides the policy so that it only has the allowed number of slaves.
  
+**What does it mean override? Will the client loose their own parameters?**
+It means override only those parameters defined in the plan and leave unmodified the rest of parameters. In other words, the tool is not replacing but merging/overriding. 
+   
        
 ##Configuration
 
