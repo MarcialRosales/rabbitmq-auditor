@@ -102,6 +102,7 @@ public class PlanConfiguration {
 			policy.getDefinition().setMessageTtl(maxMessageTTL);
 		}
 		
+		
 		// check allowed policy parameters
 		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
 			policy.getDefinition().clearHaMode();
@@ -123,7 +124,7 @@ public class PlanConfiguration {
 	}
 	
 	public boolean isCompliant(JsonPolicy policy) {
-		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || !"queues".equals(policy.getApplyTo()))) {
+		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
 			return false;
 		}
 		if (maxQueueLength > 0 && (policy.getDefinition().getMaxLengthBytes() == null || policy.getDefinition().getMaxLengthBytes() < maxQueueLengthBytes)) {
