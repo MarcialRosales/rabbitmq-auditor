@@ -24,6 +24,7 @@ class JsonPolicyDefinition {
 	public void clearHaMode() {
 		this.definition.remove("haMode");
 		this.definition.remove("haParams");
+		this.definition.remove("ha-sync-mode");
 	}
 
 	@JsonProperty("ha-params")
