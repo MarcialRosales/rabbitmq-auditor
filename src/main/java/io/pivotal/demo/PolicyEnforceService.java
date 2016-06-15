@@ -1,11 +1,10 @@
 package io.pivotal.demo;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
-import javax.annotation.PostConstruct;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,11 +15,13 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 /**
@@ -49,6 +50,7 @@ public class PolicyEnforceService {
 	private static final String auditPolicy = "policyEnforcer";
 	private static final String ROOT_VHOST = "/";
 	
+	
 	@Autowired
 	public PolicyEnforceService(RabbitAdmin admin, ApplicationEventPublisher publisher, PlanConfiguration plan) {
 		super();
@@ -65,10 +67,10 @@ public class PolicyEnforceService {
 
 	}
 	
-	
-	@PostConstruct
 	public void start() {
 		try {
+			logger.info("Starting PolicyEnforcer");
+			
 			if (admin.isThisUserAdministrator()) {
 				applyOrCheckPlan();
 			}else {
@@ -76,6 +78,8 @@ public class PolicyEnforceService {
 			}
 		}catch(Exception e) {
 			logger.error("Failed to check user is administrator", e);
+		}finally {
+			logger.info("Completed PolicyEnforcer");
 		}
 	}
 
@@ -130,7 +134,7 @@ public class PolicyEnforceService {
 		if (!plan.isCompliant(policy)) {
 			logger.info("Policy {} not compliant on vhost {}. Overriding..", event.name, event.vhost);
 			try {
-				admin.updatePolicy(plan.enforce(policy));
+				enforcePolicy(policy);
 			}catch(Exception e) {
 				logger.error("Failed to update policy", e);
 			}
@@ -192,10 +196,10 @@ public class PolicyEnforceService {
 	
 	
 	@Async
-	public void applyOrCheckPlan() {
+	private void applyOrCheckPlan() {
 		JsonPolicy policyPlan = plan.buildPolicy();
 		
-		logger.info("applying or checkingn policy plan {}", policyPlan);
+		logger.info("Applying or checking policy plan {}", policyPlan);
 		List<JsonPolicy> policies = admin.listPolicies().stream().filter(p -> !ROOT_VHOST.equals(p.getVhost())).collect(Collectors.toList());
 		Map<String, List<JsonPolicy>> policiesByVhost = policies.stream().collect(Collectors.groupingBy(JsonPolicy::getVhost));
 		
@@ -210,7 +214,7 @@ public class PolicyEnforceService {
 			if (lpolicies == null) {
 				return true;
 			}
-			return !lpolicies.stream().filter(p -> policyPlan.getName().equals(p.getName()) && ".*".equals(p.getPattern()) && plan.isCompliant(p)).findAny().isPresent();			
+			return !lpolicies.stream().filter(p -> policyPlan.getName().equals(p.getName()) && ".*".equals(p.getPattern()) && plan.matches(p)).findAny().isPresent();			
 		}).collect(Collectors.toList());
 		
 		// apply policy plans
@@ -220,7 +224,7 @@ public class PolicyEnforceService {
 			policyPlan.setVhost(vhost.getName());
 			logger.debug("Found vhost {} without policy plan or not compliant", vhost.getName());
 			try {
-				admin.updatePolicy(policyPlan);
+				enforcePolicy(policyPlan);
 			}catch(Exception e) {
 				logger.error("Failed to apply policy plan {} to vhost {} due to {}", policyPlan.getName(), policyPlan.getVhost(), e.getMessage());
 			}
@@ -230,14 +234,22 @@ public class PolicyEnforceService {
 		policies.stream().filter(p -> !plan.isCompliant(p)).forEach(p -> {
 			try {
 				logger.debug("Found policy {}|{} not compliant with policy plan {}", p.getVhost(), p.getName(), policyPlan.getName());
-				admin.updatePolicy(plan.enforce(p));
+				enforcePolicy(p);
 			}catch(Exception e) {
 				logger.error("Failed to enforce policy plan {} to vhost {} due to {}", policyPlan.getName(), policyPlan.getVhost(), e.getMessage());
 			}
 		});
 	}
 
-	
+	private void enforcePolicy(JsonPolicy policy) throws IOException {
+		plan.enforce(policy);
+		
+		if (policy.hasEmptyDefinition()) {
+			admin.deletePolicy(policy);
+		}else {
+			admin.updatePolicy(policy);
+		}
+	}
 }
 
 
@@ -266,6 +278,18 @@ class VHostCreatedEvent {
 	public VHostCreatedEvent(String vhost) {
 		super();
 		this.vhost = vhost;
+	}
+	
+}
+@Component
+class StartPolicyEnforcer implements CommandLineRunner {
+
+	@Autowired PolicyEnforceService service;
+	
+	@Override
+	public void run(String... args) throws Exception {
+		
+		service.start();
 	}
 	
 }

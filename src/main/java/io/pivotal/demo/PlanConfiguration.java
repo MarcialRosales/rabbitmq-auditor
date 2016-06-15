@@ -20,12 +20,14 @@ public class PlanConfiguration {
 	private long maxQueueLengthBytes;
 	
 	@Min(0)
-	private long maxMessageTTL;
+	private long maxMessageTtl;
 	
 	private boolean allowMirrorQueues;
 	
 	@Min(0)
 	private int maxSlaves;
+	
+	private String haSyncMode; 
 	
 	public String getName() {
 		return name;
@@ -45,11 +47,11 @@ public class PlanConfiguration {
 	public void setMaxQueueLengthBytes(long maxQueueLengthBytes) {
 		this.maxQueueLengthBytes = maxQueueLengthBytes;
 	}
-	public long getMaxMessageTTL() {
-		return maxMessageTTL;
+	public long getMaxMessageTtl() {
+		return maxMessageTtl;
 	}
-	public void setMaxMessageTTL(long maxMessageTTL) {
-		this.maxMessageTTL = maxMessageTTL;
+	public void setMaxMessageTtl(long maxMessageTtl) {
+		this.maxMessageTtl = maxMessageTtl;
 	}
 	public boolean isAllowMirrorQueues() {
 		return allowMirrorQueues;
@@ -78,13 +80,16 @@ public class PlanConfiguration {
 		policy.setPriority(0);
 		
 		policy.setDefinition(new JsonPolicyDefinition());
-		if (maxMessageTTL > 0) policy.getDefinition().setMessageTtl(maxMessageTTL);
+		
+		return applyPlanToPolicy(policy);
+	}
+	public JsonPolicy applyPlanToPolicy(JsonPolicy policy) {
+		if (maxMessageTtl > 0) policy.getDefinition().setMessageTtl(maxMessageTtl);
 		if (maxQueueLength > 0) policy.getDefinition().setMaxLength(maxQueueLength);
 		if (maxQueueLengthBytes > 0) policy.getDefinition().setMaxLengthBytes(maxQueueLengthBytes);
 		
 		return policy;
 	}
-	
 	public JsonPolicy enforce(JsonPolicy policy) {
 		// enforce
 		if (name.equals(policy.getName())) {
@@ -98,8 +103,8 @@ public class PlanConfiguration {
 		if (maxQueueLength > 0) {
 			policy.getDefinition().setMaxLength(maxQueueLength);
 		}
-		if (maxMessageTTL > 0) {
-			policy.getDefinition().setMessageTtl(maxMessageTTL);
+		if (maxMessageTtl > 0) {
+			policy.getDefinition().setMessageTtl(maxMessageTtl);
 		}
 		
 		
@@ -117,7 +122,10 @@ public class PlanConfiguration {
 				policy.getDefinition().setHaMode("exactly");
 				policy.getDefinition().setHaParams(maxSlaves);
 				break;
+			}
 			
+			if (haSyncMode != null) {
+				policy.getDefinition().setHaSyncMode(haSyncMode);
 			}
 		}
 		return policy;
@@ -127,26 +135,59 @@ public class PlanConfiguration {
 		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
 			return false;
 		}
-		if (maxQueueLength > 0 && (policy.getDefinition().getMaxLengthBytes() == null || policy.getDefinition().getMaxLengthBytes() < maxQueueLengthBytes)) {
+		if (maxQueueLengthBytes > 0 && (policy.getDefinition().getMaxLengthBytes() == null || policy.getDefinition().getMaxLengthBytes() < maxQueueLengthBytes)) {
 			return false;
 		}
 		if (maxQueueLength > 0 && (policy.getDefinition().getMaxLength() == null || policy.getDefinition().getMaxLength() < maxQueueLength)) {
 			return false;
 		}
-		if (maxMessageTTL > 0 && (policy.getDefinition().getMessageTtl() == null || policy.getDefinition().getMessageTtl() < maxMessageTTL)) {
+		if (maxMessageTtl > 0 && (policy.getDefinition().getMessageTtl() == null || policy.getDefinition().getMessageTtl() < maxMessageTtl)) {
+			return false;
+		}
+		
+		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
+			return false;
+		}
+		if (allowMirrorQueues) {
+			if (maxSlaves > 0 && "all".equals(policy.getDefinition().getHaMode())) {
+				return false;
+			}
+			if (maxSlaves > 0 && "exactly".equals(policy.getDefinition().getHaMode()) && policy.getDefinition().getHaParams() != null
+					&& policy.getDefinition().getHaParams() > maxSlaves ) {
+				return false;
+			}
+			if (haSyncMode != null && !haSyncMode.equals(policy.getDefinition().getHaSyncMode())) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public boolean matches(JsonPolicy policy) {
+		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
+			return false;
+		}
+		if (maxQueueLengthBytes != (policy.getDefinition().getMaxLengthBytes() != null ? policy.getDefinition().getMaxLengthBytes() : 0)) {
+			return false;
+		}
+		if (maxQueueLength != (policy.getDefinition().getMaxLength() != null ? policy.getDefinition().getMaxLength() : 0)) {
+			return false;
+		}
+		if (maxMessageTtl != (policy.getDefinition().getMessageTtl() != null ? policy.getDefinition().getMessageTtl(): 0)) {
 			return false;
 		}
 		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
 			return false;
 		}
-		if (allowMirrorQueues && maxSlaves > 0 && "all".equals(policy.getDefinition().getHaMode())) {
-			return false;
-		}
-		if (allowMirrorQueues && maxSlaves > 0 && "exactly".equals(policy.getDefinition().getHaMode()) && policy.getDefinition().getHaParams() != null
-				&& policy.getDefinition().getHaParams() > maxSlaves ) {
-			return false;
-		}
+		
 		return true;
+	}
+	
+	public String getHaSyncMode() {
+		return haSyncMode;
+	}
+	public void setHaSyncMode(String haSyncMode) {
+		this.haSyncMode = haSyncMode;
 	}
 	
 }

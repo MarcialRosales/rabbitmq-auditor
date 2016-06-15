@@ -69,6 +69,10 @@ class JsonPolicy {
 	public boolean appliesToQueues() {
 		return "queues".equals(applyTo) || "all".equals(applyTo);
 	}
+	
+	public boolean hasEmptyDefinition() {
+		return definition.isEmpty();
+	}
 
 	@Override
 	public String toString() {

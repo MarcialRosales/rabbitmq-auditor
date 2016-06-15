@@ -8,6 +8,7 @@ public interface RabbitAdmin {
 	List<JsonVhost> listVhosts();
 	List<JsonPolicy> listPolicies();
 	int removeConfigureAndWritePermissions(String vhost);
+	void deletePolicy(JsonPolicy policy) throws IOException;
 	void updatePolicy(JsonPolicy policy) throws IOException;
 	JsonPolicy find(String vhost, String name) throws IOException;
 	

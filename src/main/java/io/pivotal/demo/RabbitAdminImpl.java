@@ -2,7 +2,6 @@ package io.pivotal.demo;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -18,11 +17,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
@@ -58,7 +54,6 @@ public class RabbitAdminImpl implements RabbitAdmin {
 	}
 	protected HttpHeaders getPUTHttpHeaders() {
 		HttpHeaders requestHeaders = new HttpHeaders();
-//		requestHeaders.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
 		requestHeaders.set("Authorization", "Basic " + getHttpCredentials());
 		requestHeaders.setContentType(MediaType.APPLICATION_JSON);
 		return requestHeaders;
@@ -142,6 +137,17 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		restTemplate.put(uri, entity);
 	}
 
+	@Override
+	public void deletePolicy(JsonPolicy policy) throws IOException {
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		
+		String vhost = UriUtils.encodePathSegment(policy.getVhost(), "utf-8");
+		String name = UriUtils.encodePathSegment(policy.getName(), "utf-8");
+		
+		URI uri = buildURI("/api/policies").pathSegment(vhost, name).build(true).toUri();
+		
+		restTemplate.exchange(uri, HttpMethod.DELETE, request, String.class);
+	}
 	
 	@Override
 	public JsonPolicy find(String vhost, String name) throws IOException {

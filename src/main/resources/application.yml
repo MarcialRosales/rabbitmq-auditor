@@ -1,7 +1,7 @@
 logging:
   level:
     io.pivotal.demo.PolicyEnforceService: debug
-    
+     
 spring:
   rabbitmq:
     addresses: localhost:5672
@@ -9,12 +9,15 @@ spring:
     password: guest
     admin: http://localhost:15673
     
+  profiles:
+    active: PolicyEnforcement   
     
 plan:
   name: _plan
-  allow-mirror-queues: true
+  allow-mirror-queues: false
   max-slaves: 1
-  maxMessageTTL: 60000
-  max-queue-length: 2000
-  max-queue-length-bytes: 7000
+  ha-sync-mode: manual
+  max-message-ttl: 60000
+#  max-queue-length: 2000
+#  max-queue-length-bytes: 7000
   
