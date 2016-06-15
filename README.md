@@ -86,6 +86,12 @@ To run the tool in standalone mode:
 ```  
 java -DPLAN_ALLOW_MIRROR_QUEUES=false -DPLAN_MAX_QUEUE_LENGTH=3500 -DSPRING_RABBITMQ_USERNAME=admin -DSPRING_RABBITMQ_PASSWORD=admin -jar target/rabbitmq-auditor-0.0.1-SNAPSHOT.jar
 ```  
-
+We can change the plan in PCF. Let's say we want to enable mirroring at most across 2 nodes and we want to use manual synchronization:
+```  
+cf set-env rabbitmq-auditor PLAN_ALLOW_MIRROR_QUEUES true
+cf set-env rabbitmq-auditor PLAN_HA_SYNC_MODE manual
+cf set-env rabbitmq-auditor PLAN_MAX_SLAVES 2 
+cf restage rabbitmq-auditor
+```
 
  
