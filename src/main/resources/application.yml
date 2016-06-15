@@ -4,7 +4,7 @@ logging:
     
 spring:
   rabbitmq:
-    addresses: localhost:5673
+    addresses: localhost:5672
     username: guest
     password: guest
     admin: http://localhost:15673
