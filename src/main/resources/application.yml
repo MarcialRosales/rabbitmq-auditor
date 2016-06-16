@@ -16,8 +16,9 @@ plan:
   name: _plan
   allow-mirror-queues: false
   max-slaves: 1
-  ha-sync-mode: manual
+  ha-sync-mode: manual  # manual or automatic (default)
   max-message-ttl: 60000
+  queue-master-locator: min-masters  # min-masters, client-local(default), random
 #  max-queue-length: 2000
 #  max-queue-length-bytes: 7000
   

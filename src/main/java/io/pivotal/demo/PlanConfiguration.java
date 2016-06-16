@@ -29,6 +29,8 @@ public class PlanConfiguration {
 	
 	private String haSyncMode; 
 	
+	private String queueMasterLocator;
+	
 	public String getName() {
 		return name;
 	}
@@ -106,7 +108,9 @@ public class PlanConfiguration {
 		if (maxMessageTtl > 0) {
 			policy.getDefinition().setMessageTtl(maxMessageTtl);
 		}
-		
+		if (queueMasterLocator != null) {
+			policy.getDefinition().setQueueMasterLocator(queueMasterLocator);
+		}
 		
 		// check allowed policy parameters
 		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
@@ -127,6 +131,7 @@ public class PlanConfiguration {
 			if (haSyncMode != null) {
 				policy.getDefinition().setHaSyncMode(haSyncMode);
 			}
+			
 		}
 		return policy;
 	}
@@ -144,6 +149,9 @@ public class PlanConfiguration {
 		if (maxMessageTtl > 0 && (policy.getDefinition().getMessageTtl() == null || policy.getDefinition().getMessageTtl() < maxMessageTtl)) {
 			return false;
 		}
+		if (queueMasterLocator != null && !queueMasterLocator.equals(policy.getDefinition().getQueueMasterLocator())) {
+			return false;
+		}
 		
 		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
 			return false;
@@ -159,6 +167,7 @@ public class PlanConfiguration {
 			if (haSyncMode != null && !haSyncMode.equals(policy.getDefinition().getHaSyncMode())) {
 				return false;
 			}
+			
 		}
 		return true;
 	}
@@ -176,6 +185,11 @@ public class PlanConfiguration {
 		if (maxMessageTtl != (policy.getDefinition().getMessageTtl() != null ? policy.getDefinition().getMessageTtl(): 0)) {
 			return false;
 		}
+		if ((queueMasterLocator == null && policy.getDefinition().getQueueMasterLocator() != null) ||
+				(queueMasterLocator != null && !queueMasterLocator.equals(policy.getDefinition().getQueueMasterLocator()))) {
+			return false;
+		}
+
 		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
 			return false;
 		}
@@ -188,6 +202,12 @@ public class PlanConfiguration {
 	}
 	public void setHaSyncMode(String haSyncMode) {
 		this.haSyncMode = haSyncMode;
+	}
+	public String getQueueMasterLocator() {
+		return queueMasterLocator;
+	}
+	public void setQueueMasterLocator(String queueMasterLocator) {
+		this.queueMasterLocator = queueMasterLocator;
 	}
 	
 }

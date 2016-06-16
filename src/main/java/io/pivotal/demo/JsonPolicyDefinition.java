@@ -27,7 +27,16 @@ class JsonPolicyDefinition {
 	public static final String HA_SYNC_MODE = "ha-sync-mode";
 	public static final String EXPIRES = "expires";
 	public static final String DEAD_LETTER_ROUTING_KEY = "dead-letter-routing-key";
+	public static final String QUEUE_MASTER_LOCATOR = "queue-master-locator";
 	
+	@JsonProperty(QUEUE_MASTER_LOCATOR)
+	public String getQueueMasterLocator() {
+		return (String)definition.get(QUEUE_MASTER_LOCATOR);
+	}
+
+	public void setQueueMasterLocator(String queueMasterLocator) {
+		this.definition.put(QUEUE_MASTER_LOCATOR, queueMasterLocator);
+	}
 	
 	@JsonProperty(HA_MODE)
 	public String getHaMode() {

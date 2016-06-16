@@ -91,7 +91,7 @@ We can change the plan in PCF. Let's say we want to enable mirroring at most acr
 cf set-env rabbitmq-auditor PLAN_ALLOW_MIRROR_QUEUES true
 cf set-env rabbitmq-auditor PLAN_HA_SYNC_MODE manual
 cf set-env rabbitmq-auditor PLAN_MAX_SLAVES 2 
-cf restage rabbitmq-auditor
+cf restage rabbitmq-auditor	
 ```
 
  
