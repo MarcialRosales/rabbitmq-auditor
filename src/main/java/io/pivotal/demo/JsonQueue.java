@@ -77,11 +77,11 @@ class JsonQueue {
 		this.policy = policy;
 	}
 
-	public String getvhost() {
+	public String getVhost() {
 		return vhost;
 	}
 
-	public void setvhost(String vHost) {
+	public void setvVost(String vHost) {
 		this.vhost = vHost;
 	}
 

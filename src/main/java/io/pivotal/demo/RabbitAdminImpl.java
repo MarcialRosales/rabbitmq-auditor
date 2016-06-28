@@ -94,6 +94,19 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		return vhosts;
 	}
 	@Override
+	public List<JsonConnection> listConnections() {
+		
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		URI uri = buildURI("/api/connections").query("columns=vhost,user,channels,node").build().toUri();
+		
+		ResponseEntity<List<JsonConnection>> connectionResponse = restTemplate.exchange(
+				uri, HttpMethod.GET, request,
+				new ParameterizedTypeReference<List<JsonConnection>>() {
+				});
+		List<JsonConnection> connections = connectionResponse.getBody();
+		return connections;
+	}
+	@Override
 	public List<JsonPolicy> listPolicies() {
 		
 		HttpEntity<String> request = new HttpEntity<String>(headers);
@@ -105,6 +118,19 @@ public class RabbitAdminImpl implements RabbitAdmin {
 				});
 		List<JsonPolicy> policies = connectionResponse.getBody();
 		return policies;
+	}
+	@Override
+	public List<JsonQueue> listQueues() {
+		
+		HttpEntity<String> request = new HttpEntity<String>(headers);
+		URI uri = buildURI("/api/queues").build().toUri();
+
+		ResponseEntity<List<JsonQueue>> connectionResponse = restTemplate.exchange(uri
+				, HttpMethod.GET, request,
+				new ParameterizedTypeReference<List<JsonQueue>>() {
+				});
+		List<JsonQueue> queues = connectionResponse.getBody();
+		return queues;
 	}
 
 	@Override

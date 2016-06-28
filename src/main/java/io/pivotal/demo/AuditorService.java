@@ -1,85 +1,176 @@
 package io.pivotal.demo;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.Binding.DestinationType;
-import org.springframework.amqp.core.Declarable;
-import org.springframework.amqp.core.Message;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+/**
+ * Connection/Channel view:
+ * top #vhost according to # connections
+ * top #vhost according to # channels
+ * top #user according to #  
+ * 
+ * Distribution per node of queues, and connections
+ * 
+ * @author mrosales
+ *
+ */
 @Service
 @Profile("Auditing")
 @RestController("auditor")
 public class AuditorService {
 
 	private Logger logger = LoggerFactory.getLogger(AuditorService.class);
+	private RabbitAdmin admin;
 	
-	private static final String auditor = "auditor";
-	private Set<String> monitorVhosts = Collections.synchronizedSet(new HashSet<>());
-
-	// this is necessary until the connection.closed and channel.closed contains the vhost
-	private Map<String, String> pids = new HashMap<>();
+	@Autowired
+	public AuditorService(RabbitAdmin admin) {
+		this.admin = admin;
+	}
 	
-	@Bean
-	public List<Declarable> prepareListener() {
-		return Arrays.<Declarable> asList(new Queue(auditor, false, false, true),
-				new Binding(auditor, DestinationType.QUEUE, "amq.rabbitmq.event", "#", null),
-				new Binding(auditor, DestinationType.QUEUE, "amq.rabbitmq.event", "consumer.#", null),
-				new Binding(auditor, DestinationType.QUEUE, "amq.rabbitmq.event", "channel.#", null),
-				new Binding(auditor, DestinationType.QUEUE, "amq.rabbitmq.event", "connection.#", null),
-				new Binding(auditor, DestinationType.QUEUE, "amq.rabbitmq.event", "queue.#", null));
-
+	@RequestMapping("/connectivityReport")
+	public JsonConnectivityReport connectivityReport() {
+		JsonConnectivityReport report = new JsonConnectivityReport(); 
+		admin.listConnections().stream().forEach(c -> report.take(c));
+		admin.listQueues().stream().forEach(q -> report.take(q));
+		return report;
 	}
 
-	@RabbitListener(queues = auditor)
-	public void processPolicyEvent(Message m) {
-		String vhost = (String) m.getMessageProperties().getHeaders().get("vhost");
-		
-			String event = m.getMessageProperties().getReceivedRoutingKey();
-			switch(event) {
-			case "connection.created":
-			case "channel.created":
-				pids.put(m.getMessageProperties().getHeaders().get("pid").toString(), vhost);
-				break;
-			case "connection.closed":
-			case "channel.closed":
-				vhost = pids.remove(m.getMessageProperties().getHeaders().get("pid").toString());
-			}
-		
-		if (monitorVhosts.contains(vhost)) {
-			logger.info("{} {}", m.getMessageProperties().getReceivedRoutingKey(), m.getMessageProperties().toString());		
-		}else if (logger.isDebugEnabled()) {
-			logger.debug("XX {} {}", m.getMessageProperties().getReceivedRoutingKey(), m.getMessageProperties().toString());
+}
+@JsonIgnoreProperties(ignoreUnknown = true)
+class JsonConnectivityReport {
+	private Map<String, JsonNode> nodes = new HashMap<>(); 
+	private Map<String, JsonVhostReport> vhosts = new HashMap<>();
+	
+	
+	public void take(JsonConnection connection) {
+		JsonNode node = nodes.get(connection.getNode());
+		if (node == null) {
+			nodes.put(connection.getNode(), node = new JsonNode(connection.getNode()));
 		}
-			
+		node.take(connection);
+		JsonVhostReport vhost = vhosts.get(connection.getVhost());
+		if (vhost == null) {
+			vhosts.put(connection.getVhost(), vhost = new JsonVhostReport(connection.getVhost()));
+		}
+		vhost.take(connection);
+	}
+	public void take(JsonQueue queue) {
+		JsonNode node = nodes.get(queue.getNode());
+		if (node == null) {
+			nodes.put(queue.getNode(), node = new JsonNode(queue.getNode()));
+		}
+		node.take(queue);
+		JsonVhostReport vhost = vhosts.get(queue.getVhost());
+		if (vhost == null) {
+			vhosts.put(queue.getVhost(), vhost = new JsonVhostReport(queue.getVhost()));
+		}
+		vhost.take(queue);
+	}
+	public Collection<JsonNode> getNodes() {
+		return nodes.values();
+	}
+	public Collection<JsonVhostReport> getVhosts() {
+		return vhosts.values();
+	}
+}
+
+class JsonVhostReport {
+	int connectionCount;
+	int channelCount;
+	int queueCount;
+	Map<String, JsonUserReport> users = new HashMap<>();
+	
+	String name;
+	public JsonVhostReport(String name) {
+		this.name = name;
+	}
+	public void take(JsonConnection connection) {
+		connectionCount++;
+		channelCount+=connection.getChannels();
+		
+		JsonUserReport user = users.get(connection.getUser());
+		if (user == null) {
+			users.put(connection.getUser(), user = new JsonUserReport(connection.getUser()));
+		}
+		user.take(connection);
+	}
+	
+	public void take(JsonQueue queue) {
+		queueCount++;
+	}
+	public String getName() {
+		return name;
+	}
+	public int getConnectionCount() {
+		return connectionCount;
+	}
+	public int getChannelCount() {
+		return channelCount;
+	}
+	public int getQueueCount() {
+		return queueCount;
+	}
+	
+	public Collection<JsonUserReport> getUsers() {
+		return users.values();
+	}
+}
+class JsonUserReport {
+	String name;
+	int connectionCount;
+	int channelCount;
+	
+	public JsonUserReport(String name) {
+		this.name = name;
+	}
+	public void take(JsonConnection connection) {
+		connectionCount++;
+		channelCount+=connection.getChannels();
+	}
+	public String getName() {
+		return name;
+	}
+	public int getConnectionCount() {
+		return connectionCount;
+	}
+	public int getChannelCount() {
+		return channelCount;
 	}
 
-	@RequestMapping("auditor/start/{vhost}")
-	public void start(@PathVariable String vhost) {
-		monitorVhosts.add(vhost);
+	
+}
+class JsonNode {
+	String name;
+	int connectionCount;
+	int queueCount;
+	
+	JsonNode(String name) {
+		this.name = name;
 	}
-	@RequestMapping("auditor/stop/{vhost}")
-	public void stop(@PathVariable String vhost) {
-		monitorVhosts.remove(vhost);
+	public void take(JsonConnection connection) {
+		connectionCount++;
 	}
-	@RequestMapping("auditor") 
-	public String list() {
-		return monitorVhosts.toString();
+	public void take(JsonQueue queue) {
+		queueCount++;
+	}
+	public String getName() {
+		return name;
+	}
+	public int getConnectionCount() {
+		return connectionCount;
+	}
+	public int getQueueCount() {
+		return queueCount;
 	}
 }

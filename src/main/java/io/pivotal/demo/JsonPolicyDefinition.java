@@ -28,6 +28,7 @@ class JsonPolicyDefinition {
 	public static final String EXPIRES = "expires";
 	public static final String DEAD_LETTER_ROUTING_KEY = "dead-letter-routing-key";
 	public static final String QUEUE_MASTER_LOCATOR = "queue-master-locator";
+	public static final String HA_PROMOTE_ON_SHUTDOWN = "ha-promote-on-shutdown";
 	
 	@JsonProperty(QUEUE_MASTER_LOCATOR)
 	public String getQueueMasterLocator() {
@@ -36,6 +37,16 @@ class JsonPolicyDefinition {
 
 	public void setQueueMasterLocator(String queueMasterLocator) {
 		this.definition.put(QUEUE_MASTER_LOCATOR, queueMasterLocator);
+	}
+	
+	
+	@JsonProperty(HA_PROMOTE_ON_SHUTDOWN)
+	public String getHaPromoteOnShutdown() {
+		return (String)definition.get(HA_PROMOTE_ON_SHUTDOWN);
+	}
+
+	public void setHaPromoteOnShutdown(String haPromoteOnShutdown) {
+		this.definition.put(HA_PROMOTE_ON_SHUTDOWN, haPromoteOnShutdown);
 	}
 	
 	@JsonProperty(HA_MODE)

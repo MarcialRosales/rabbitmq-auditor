@@ -10,7 +10,7 @@ spring:
     admin: http://localhost:15673
     
   profiles:
-    active: PolicyEnforcement   
+    active: PolicyEnforcement,Auditing   
     
 plan:
   name: _plan

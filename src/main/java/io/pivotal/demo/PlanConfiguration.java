@@ -31,6 +31,8 @@ public class PlanConfiguration {
 	
 	private String queueMasterLocator;
 	
+	private String haPromoteOnShutdown;
+	
 	public String getName() {
 		return name;
 	}
@@ -167,6 +169,10 @@ public class PlanConfiguration {
 			if (haSyncMode != null && !haSyncMode.equals(policy.getDefinition().getHaSyncMode())) {
 				return false;
 			}
+			if (haPromoteOnShutdown != null && !haPromoteOnShutdown.equals(policy.getDefinition().getHaPromoteOnShutdown())) {
+				return false;
+			}
+			
 			
 		}
 		return true;
@@ -208,6 +214,12 @@ public class PlanConfiguration {
 	}
 	public void setQueueMasterLocator(String queueMasterLocator) {
 		this.queueMasterLocator = queueMasterLocator;
+	}
+	public String getHaPromoteOnShutdown() {
+		return haPromoteOnShutdown;
+	}
+	public void setHaPromoteOnShutdown(String haPromoteOnShutdown) {
+		this.haPromoteOnShutdown = haPromoteOnShutdown;
 	}
 	
 }

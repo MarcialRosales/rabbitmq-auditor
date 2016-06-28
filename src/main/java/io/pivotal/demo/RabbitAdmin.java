@@ -5,8 +5,10 @@ import java.util.List;
 
 public interface RabbitAdmin {
 	List<JsonChannel> listChannels();
+	List<JsonConnection> listConnections();
 	List<JsonVhost> listVhosts();
 	List<JsonPolicy> listPolicies();
+	List<JsonQueue> listQueues();
 	int removeConfigureAndWritePermissions(String vhost);
 	void deletePolicy(JsonPolicy policy) throws IOException;
 	void updatePolicy(JsonPolicy policy) throws IOException;
