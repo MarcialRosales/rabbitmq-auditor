@@ -56,6 +56,12 @@ plan:
   max-queue-length-bytes: 1048576  # maximum size for all queues
 ```
 
+| Setting               | Description               |
+|-----------------------|---------------------------|
+| name                  | name of the RabbitMQ policy the tool creates on every vhost (except the root)
+| max-queue-length      | maximum number of ready messages in queue |
+
+
 ###Automatic vs manual policy enforcement
 We can configure the policy enforcer to automatically enforce the plan or manually (i.e. on demand by an administrator).
 
