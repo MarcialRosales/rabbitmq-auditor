@@ -56,10 +56,17 @@ plan:
   max-queue-length-bytes: 1048576  # maximum size for all queues
 ```
 
-| Setting               | Description               |
+| Plan Definition Attributes               | Description               |
 |-----------------------|---------------------------|
 | name                  | name of the RabbitMQ policy the tool creates on every vhost (except the root)
-| max-queue-length      | maximum number of ready messages in queue |
+| <a href="https://www.rabbitmq.com/maxlength.html">max-queue-length </a>     | maximum number of ready messages in queue |
+| max-queue-length-bytes      | maximum number of ready bytes in queue |
+| <a href="https://www.rabbitmq.com/ttl.html">max-message-ttl</a>     | maximum number of milliseconds a ready message can stay in queue |
+| allow-mirror-queues    | allow mirror queue feature (true or false)  |
+| max-slaves    | maximum number of slaves allowed per mirrored queue  |
+| <a href="https://www.rabbitmq.com/ha.html#eager-synchronisation">ha-sync-mode</a>    | allowed ha-sync-mode. If not defined means any mode is allowed |
+| <a href="https://www.rabbitmq.com/ha.html#cluster-shutdown">ha-promote-on-shutdown</a>   | allowed ha-promote-on-shutdown. If not defined means any mode is allowed |
+| <a href="https://www.rabbitmq.com/ha.html#queue-master-location">queue-master-locator </a>   | allowed queue-master-locator strategy. If not defined means any mode is allowed |
 
 
 ###Automatic vs manual policy enforcement
