@@ -3,13 +3,162 @@ package io.pivotal.demo;
 import javax.validation.constraints.Min;
 
 import org.hibernate.validator.constraints.NotBlank;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
 @Configuration
-@ConfigurationProperties("plan")
+@EnableConfigurationProperties(PlanProperties.class)
 public class PlanConfiguration {
 	
+	@Autowired
+	private PlanProperties plan;
+	
+	public String getName() {
+		return plan.getName();
+	}
+	public PlanProperties getProperties() {
+		return plan;
+	}
+	
+	public JsonPolicy buildPolicyFor(String vhost) {
+		JsonPolicy policy = buildPolicy();
+		policy.setVhost(vhost);
+		return policy;
+	}
+	public JsonPolicy buildPolicy() {
+		JsonPolicy policy = new JsonPolicy();
+		policy.setName(plan.getName());
+		policy.setApplyTo("queues");
+		policy.setPattern(".*");
+		policy.setPriority(0);
+		
+		policy.setDefinition(new JsonPolicyDefinition());
+		
+		return enforce(policy);
+	}
+
+	public JsonPolicy enforce(JsonPolicy policy) {
+		// enforce
+		if (plan.getName().equals(policy.getName())) {
+			policy.setPattern(".*");
+			policy.setApplyTo("queues");
+		}
+		
+		if (plan.getMaxQueueLengthBytes() > 0) {
+			policy.getDefinition().setMaxLengthBytes(plan.getMaxQueueLengthBytes());
+		}
+		if (plan.getMaxQueueLength() > 0) {
+			policy.getDefinition().setMaxLength(plan.getMaxQueueLength());
+		}
+		if (plan.getMaxMessageTtl() > 0) {
+			policy.getDefinition().setMessageTtl(plan.getMaxMessageTtl());
+		}
+		if (plan.getQueueMasterLocator() != null) {
+			policy.getDefinition().setQueueMasterLocator(plan.getQueueMasterLocator());
+		}
+		
+		// check allowed policy parameters
+		if (!plan.isAllowMirrorQueues() && policy.getDefinition().getHaMode() != null) {
+			policy.getDefinition().clearHaMode();
+		}else if (plan.isAllowMirrorQueues() && policy.getDefinition().getHaMode() != null && plan.getMaxSlaves() > 0) {
+			
+			switch(policy.getDefinition().getHaMode()) {
+			case "exactly": 
+				policy.getDefinition().setHaParams(plan.getMaxSlaves());
+				break;
+			case "nodes": // for nodes, ideally, we should allow them to select at most maxSlaves
+			case "all":
+				policy.getDefinition().setHaMode("exactly");
+				policy.getDefinition().setHaParams(plan.getMaxSlaves());
+				break;
+			}
+			
+			if (plan.getHaSyncMode() != null) {
+				policy.getDefinition().setHaSyncMode(plan.getHaSyncMode());
+			}
+			if (plan.getHaPromoteOnShutdown() != null) {
+				policy.getDefinition().setHaPromoteOnShutdown(plan.getHaPromoteOnShutdown());
+			}
+			
+		}
+		return policy;
+	}
+	
+	public boolean isCompliant(JsonPolicy policy) {
+		if (plan.getName().equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
+			return false;
+		}
+		if (plan.getMaxQueueLengthBytes() > 0 && (policy.getDefinition().getMaxLengthBytes() == null || policy.getDefinition().getMaxLengthBytes() < plan.getMaxQueueLengthBytes())) {
+			return false;
+		}
+		if (plan.getMaxQueueLength() > 0 && (policy.getDefinition().getMaxLength() == null || policy.getDefinition().getMaxLength() < plan.getMaxQueueLength())) {
+			return false;
+		}
+		if (plan.getMaxMessageTtl() > 0 && (policy.getDefinition().getMessageTtl() == null || policy.getDefinition().getMessageTtl() < plan.getMaxMessageTtl())) {
+			return false;
+		}
+		if (plan.getQueueMasterLocator() != null && !plan.getQueueMasterLocator().equals(policy.getDefinition().getQueueMasterLocator())) {
+			return false;
+		}
+		
+		if (!plan.isAllowMirrorQueues() && policy.getDefinition().getHaMode() != null) {
+			return false;
+		}
+		if (plan.isAllowMirrorQueues()) {
+			if (plan.getMaxSlaves() > 0 && "all".equals(policy.getDefinition().getHaMode())) {
+				return false;
+			}
+			if (plan.getMaxSlaves() > 0 && "exactly".equals(policy.getDefinition().getHaMode()) && policy.getDefinition().getHaParams() != null
+					&& policy.getDefinition().getHaParams() > plan.getMaxSlaves() ) {
+				return false;
+			}
+			if (plan.getHaSyncMode() != null && !plan.getHaSyncMode().equals(policy.getDefinition().getHaSyncMode())) {
+				return false;
+			}
+			if (plan.getHaPromoteOnShutdown() != null && !plan.getHaPromoteOnShutdown().equals(policy.getDefinition().getHaPromoteOnShutdown())) {
+				return false;
+			}
+			
+			
+		}
+		return true;
+	}
+	
+	public boolean matches(JsonPolicy policy) {
+		if (plan.getName().equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
+			return false;
+		}
+		if (plan.getMaxQueueLengthBytes() != (policy.getDefinition().getMaxLengthBytes() != null ? policy.getDefinition().getMaxLengthBytes() : 0)) {
+			return false;
+		}
+		if (plan.getMaxQueueLength() != (policy.getDefinition().getMaxLength() != null ? policy.getDefinition().getMaxLength() : 0)) {
+			return false;
+		}
+		if (plan.getMaxMessageTtl() != (policy.getDefinition().getMessageTtl() != null ? policy.getDefinition().getMessageTtl(): 0)) {
+			return false;
+		}
+		if ((plan.getQueueMasterLocator() == null && policy.getDefinition().getQueueMasterLocator() != null) ||
+				(plan.getQueueMasterLocator() != null && !plan.getQueueMasterLocator().equals(policy.getDefinition().getQueueMasterLocator()))) {
+			return false;
+		}
+
+		if (!plan.isAllowMirrorQueues() && policy.getDefinition().getHaMode() != null) {
+			return false;
+		}
+		
+		return true;
+	}
+	
+	
+}
+@ConfigurationProperties("plan")
+@JsonInclude(Include.NON_NULL)
+class PlanProperties {
 	@NotBlank
 	private String name;
 	
@@ -32,6 +181,8 @@ public class PlanConfiguration {
 	private String queueMasterLocator;
 	
 	private String haPromoteOnShutdown;
+	
+	private String enforceMode;
 	
 	public String getName() {
 		return name;
@@ -69,140 +220,6 @@ public class PlanConfiguration {
 	public void setMaxSlaves(int maxSlaves) {
 		this.maxSlaves = maxSlaves;
 	}
-	
-
-	public JsonPolicy buildPolicyFor(String vhost) {
-		JsonPolicy policy = buildPolicy();
-		policy.setVhost(vhost);
-		return policy;
-	}
-	public JsonPolicy buildPolicy() {
-		JsonPolicy policy = new JsonPolicy();
-		policy.setName(name);
-		policy.setApplyTo("queues");
-		policy.setPattern(".*");
-		policy.setPriority(0);
-		
-		policy.setDefinition(new JsonPolicyDefinition());
-		
-		return applyPlanToPolicy(policy);
-	}
-	public JsonPolicy applyPlanToPolicy(JsonPolicy policy) {
-		if (maxMessageTtl > 0) policy.getDefinition().setMessageTtl(maxMessageTtl);
-		if (maxQueueLength > 0) policy.getDefinition().setMaxLength(maxQueueLength);
-		if (maxQueueLengthBytes > 0) policy.getDefinition().setMaxLengthBytes(maxQueueLengthBytes);
-		
-		return policy;
-	}
-	public JsonPolicy enforce(JsonPolicy policy) {
-		// enforce
-		if (name.equals(policy.getName())) {
-			policy.setPattern(".*");
-			policy.setApplyTo("queues");
-		}
-		
-		if (maxQueueLengthBytes > 0) {
-			policy.getDefinition().setMaxLengthBytes(maxQueueLengthBytes);
-		}
-		if (maxQueueLength > 0) {
-			policy.getDefinition().setMaxLength(maxQueueLength);
-		}
-		if (maxMessageTtl > 0) {
-			policy.getDefinition().setMessageTtl(maxMessageTtl);
-		}
-		if (queueMasterLocator != null) {
-			policy.getDefinition().setQueueMasterLocator(queueMasterLocator);
-		}
-		
-		// check allowed policy parameters
-		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
-			policy.getDefinition().clearHaMode();
-		}else if (allowMirrorQueues && policy.getDefinition().getHaMode() != null && maxSlaves > 0) {
-			
-			switch(policy.getDefinition().getHaMode()) {
-			case "exactly": 
-				policy.getDefinition().setHaParams(maxSlaves);
-				break;
-			case "nodes": // for nodes, ideally, we should allow them to select at most maxSlaves
-			case "all":
-				policy.getDefinition().setHaMode("exactly");
-				policy.getDefinition().setHaParams(maxSlaves);
-				break;
-			}
-			
-			if (haSyncMode != null) {
-				policy.getDefinition().setHaSyncMode(haSyncMode);
-			}
-			
-		}
-		return policy;
-	}
-	
-	public boolean isCompliant(JsonPolicy policy) {
-		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
-			return false;
-		}
-		if (maxQueueLengthBytes > 0 && (policy.getDefinition().getMaxLengthBytes() == null || policy.getDefinition().getMaxLengthBytes() < maxQueueLengthBytes)) {
-			return false;
-		}
-		if (maxQueueLength > 0 && (policy.getDefinition().getMaxLength() == null || policy.getDefinition().getMaxLength() < maxQueueLength)) {
-			return false;
-		}
-		if (maxMessageTtl > 0 && (policy.getDefinition().getMessageTtl() == null || policy.getDefinition().getMessageTtl() < maxMessageTtl)) {
-			return false;
-		}
-		if (queueMasterLocator != null && !queueMasterLocator.equals(policy.getDefinition().getQueueMasterLocator())) {
-			return false;
-		}
-		
-		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
-			return false;
-		}
-		if (allowMirrorQueues) {
-			if (maxSlaves > 0 && "all".equals(policy.getDefinition().getHaMode())) {
-				return false;
-			}
-			if (maxSlaves > 0 && "exactly".equals(policy.getDefinition().getHaMode()) && policy.getDefinition().getHaParams() != null
-					&& policy.getDefinition().getHaParams() > maxSlaves ) {
-				return false;
-			}
-			if (haSyncMode != null && !haSyncMode.equals(policy.getDefinition().getHaSyncMode())) {
-				return false;
-			}
-			if (haPromoteOnShutdown != null && !haPromoteOnShutdown.equals(policy.getDefinition().getHaPromoteOnShutdown())) {
-				return false;
-			}
-			
-			
-		}
-		return true;
-	}
-	
-	public boolean matches(JsonPolicy policy) {
-		if (name.equals(policy.getName()) && (!".*".equals(policy.getPattern()) || "exchanges".equals(policy.getApplyTo()))) {
-			return false;
-		}
-		if (maxQueueLengthBytes != (policy.getDefinition().getMaxLengthBytes() != null ? policy.getDefinition().getMaxLengthBytes() : 0)) {
-			return false;
-		}
-		if (maxQueueLength != (policy.getDefinition().getMaxLength() != null ? policy.getDefinition().getMaxLength() : 0)) {
-			return false;
-		}
-		if (maxMessageTtl != (policy.getDefinition().getMessageTtl() != null ? policy.getDefinition().getMessageTtl(): 0)) {
-			return false;
-		}
-		if ((queueMasterLocator == null && policy.getDefinition().getQueueMasterLocator() != null) ||
-				(queueMasterLocator != null && !queueMasterLocator.equals(policy.getDefinition().getQueueMasterLocator()))) {
-			return false;
-		}
-
-		if (!allowMirrorQueues && policy.getDefinition().getHaMode() != null) {
-			return false;
-		}
-		
-		return true;
-	}
-	
 	public String getHaSyncMode() {
 		return haSyncMode;
 	}
@@ -215,11 +232,18 @@ public class PlanConfiguration {
 	public void setQueueMasterLocator(String queueMasterLocator) {
 		this.queueMasterLocator = queueMasterLocator;
 	}
+	
 	public String getHaPromoteOnShutdown() {
 		return haPromoteOnShutdown;
 	}
 	public void setHaPromoteOnShutdown(String haPromoteOnShutdown) {
 		this.haPromoteOnShutdown = haPromoteOnShutdown;
 	}
-	
+	public String getEnforceMode() {
+		return enforceMode;
+	}
+	public void setEnforceMode(String enforceMode) {
+		this.enforceMode = enforceMode;
+	}
+			
 }

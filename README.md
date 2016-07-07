@@ -1,10 +1,13 @@
 # rabbitmq-auditor
 
-Proof of Concept Operations Tool for RabbitMQ. The current version of this operations tools has the following feature.
+Proof of Concept Operations Tool for RabbitMQ. The current version of this Operations tools has two features: A Policy enforcer and a management api that extends the one provided by RabbitMq itself. 
 
-##Policy Enforcement
+#Policy Enforcement
 
-The tool allows an administrator user (configured in application.yml) to define a plan for all vhosts in the RabbitMQ Cluster. Through the plan we can enforce that all queues in any vhosts, except the root, have a maximum depth, and/or a maximum depth in bytes, and/or maximum ttl. Furthermore, we can allow or disallow mirror queues and the maximum number of slaves should the client configured a policy with mirroring.
+Goal: Use <a href="https://www.rabbitmq.com/parameters.html#policies"> RabbitMQ's policy</a> to enforce a set of restrictions (such as Maximum Depth) across all vhosts. Users are allowed to create their own policies but the policy enforcer will override them to make them compliant with the overall policy. This overall policy is called "plan" (a.k.a. service plan). 
+ 
+An administrator defines a service plan thru configuration. A plan states what RabbitMq's features and resources are available to vhosts. Features are things like "Mirroring", "Lazy queues", etc. Resources are "maximum messages (or bytes) in a queue" or "maximum time messages can stay in a queue" or "maximum slaves when mirroring is enabled". We can find a more detailed description of a plan in the next sections. Once the plan is defined, this tool will make sure all vhosts are compliant with the plan. For instance, if the plan states that queues cannot have more than 1000 messages, it will make sure that all policies have that restriction. If mirroring is not allowed but a user creates a policy with mirroring, the policy enforcer automatically removes mirroring from the user's policy.     
+ 
 
 **The principle is simple** 
  - When the tool starts up, it makes sure that all vhosts, except the root, has a policy called "_plan" and that is compliant with the configured plan. The tool makes sure that at least there is a policy for all queues in the vhost. Furthermore, it checks that rest of the policies are also compliant. 
@@ -22,7 +25,8 @@ It means override only those parameters defined in the plan and leave unmodified
        
 ##Configuration
 
-a. We need to configure the location of RabbitMq and the credentials of an administrator user and the url of the management console. Check out application.yml file.
+###RabbitMq settings
+We need to configure the location of RabbitMq and the credentials of an administrator user and the url of the management console. Check out application.yml file.
 ```
 spring:
   rabbitmq:
@@ -32,7 +36,8 @@ spring:
     admin: http://localhost:15673
 ```
 
-b. We need to configure the plan's settings via the application.yml. 
+###Service plan
+We need to configure the plan's settings via the application.yml. 
 ```    
 plan:
   name: _plan					# Name of the plan's policy
@@ -43,16 +48,119 @@ plan:
   max-queue-length-bytes: 7000  # all queues' max length in bytes
 ```
 
-c. If we only wanted to enforce queue length in bytes and no mirroring, we would need this configuration:
+If we only wanted to enforce queue length in bytes and no mirroring, we would need this configuration:
 ```    
 plan:
   name: _plan					
   allow-mirror-queues: false	   # do not allow mirroring
   max-queue-length-bytes: 1048576  # maximum size for all queues
 ```
- 
 
-d. If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
+###Automatic vs manual policy enforcement
+We can configure the policy enforcer to automatically enforce the plan or manually (i.e. on demand by an administrator).
+
+<b>Automatic Policy Enforcer</b></p>
+On this mode, the Policy Enforcer will:
+  - Enforce the configured plan across all vhosts when we launch it
+  - Enforce the configured plan across new created vhosts while Policy enforcer is running
+  - Enforce the configured plan when a policy changes (except for policies on the root vhost) 
+  
+To enable automatic policy enforcement, edit application.yml and set this property ``plan.enforce-mode: automatic`` or pass the following JVM parameter ``-DPOLICYENFORCER_MODE=automatic``. 
+
+<b>Manual Policy Enforcer</b></p>
+On this mode, the Policy Enforcer will only intervene when the administrator requests it. This means that a user can create a not compliant policy. It also means vhosts are not automatically created without a compliant policy. It is the responsibility of the administrator to enforce them.  
+
+The Policy Enforcer exposes the following REST-api to help detect not compliant vhosts and to enforce the plan across one or all not compliant vhosts. We need to pass the credentials of the administrator user using HTTP Basic Authentication.
+
+* Get a list of not compliant vhosts:
+
+```
+$ curl -u guest:guest http://localhost:8080/plan/uncompliantVhosts
+HTTP/1.1 200 OK
+{
+  "vHostCount": 3,
+  "vHostsWithoutPlan": [test1],
+  "uncompliantVhosts": [test2],
+  "vHostsWithoutPlanCount": 1,
+  "uncompliantVhostsCount": 1
+}
+```
+
+* Get the current plan 
+
+```
+$ curl -u guest:guest http://localhost:8080/plan
+HTTP/1.1 200 OK
+{
+  "name": "_plan",
+  "maxQueueLength": 0,
+  "maxQueueLengthBytes": 0,
+  "maxMessageTtl": 60000,
+  "allowMirrorQueues": false,
+  "maxSlaves": 1,
+  "haSyncMode": "manual",
+  "queueMasterLocator": "min-masters",
+  "enforceMode": "automatic"
+}
+```
+
+* Get the current RabbitMq's policy for the plan
+
+```
+$ curl -u guest:guest http://localhost:8080/plan/policy
+HTTP/1.1 200 OK
+{
+  "name": "_plan",
+  "definition": {
+    "queue-master-locator": "min-masters",
+    "message-ttl": 60000
+  },
+  "pattern": ".*",
+  "priority": 0,
+  "apply-to": "queues"
+}
+```
+
+* Delete all the enforced RabbitMq's policies.
+It deletes all the ``_plan`` policies across all vhosts except the root. It only makes sense to call this request when we are using ``plan.enforce-mode: manual``. 
+
+```
+$ curl -X DELETE -u guest:guest http://localhost:8080/plan
+``` 
+
+* Delete the enforced RabbitMq's policy on a given vhost.
+It deletes the ``_plan`` policy. It only makes sense to call this request when we are using ``plan.enforce-mode: manual``. 
+
+```
+$ curl -X DELETE -u guest:guest http://localhost:8080/plan/test2
+``` 
+
+* To enforce the plan on a given vhost. 
+
+```
+$ curl -X POST -u guest:guest http://localhost:8080/plan/test2/enforce
+``` 
+
+* To enforce the plan across all not compliant vhosts. 
+
+```
+$ curl -X POST -u guest:guest http://localhost:8080/plan/enforce
+``` 
+
+
+To enable manual policy enforcement, either make sure we don't have the setting ``policyEnforcer.mode`` or edit application.yml and set  ``plan.enforce-mode: manual`` or pass the following JVM parameter ``-D PLAN_ENFORCE_MODE=manual``. 
+       
+```    
+plan:
+  name: _plan					
+  allow-mirror-queues: false	   # do not allow mirroring
+  max-queue-length-bytes: 1048576  # maximum size for all queues
+  enforce-mode: manual             # do not automatically enforce plan 
+```
+
+ 
+### Deploy on PCF
+If we deploy this tool on PCF, check out the manifest.yml and see how you can override the plan's settings and/or rabbitmq's configuration.
 
 ```  
  ....
@@ -67,6 +175,8 @@ d. If we deploy this tool on PCF, check out the manifest.yml and see how you can
     PLAN_MAX_QUEUE_LENGTH_BYTES: 100000
     PLAN_MAX_MESSAGE_TTL: 60000
     PLAN_MAX_SLAVES: 1
+    
+    PLAN_ENFORCE_MODE: manual
  ```
  
 ##How to use this tool
@@ -93,5 +203,95 @@ cf set-env rabbitmq-auditor PLAN_HA_SYNC_MODE manual
 cf set-env rabbitmq-auditor PLAN_MAX_SLAVES 2 
 cf restage rabbitmq-auditor	
 ```
+
+#Management API
+
+Goal: Expose a new management api that builds on top of the existing RabbitMQ's api and offers more elaborate views of RabbitMQ resources.
+
+##Resource Usage Report
+As an administrator of a multi-tenant RabbitMq cluster, I want to be able to know the distribution of connections and channels per vhost/user and queues per vhost and node. 
+
+```
+$ curl -u guest:guest localhost:8080/api/resources/usage
+HTTP/1.1 200 OK
+{
+  "nodes": [
+    {
+      "name": "node1@localhost",
+      "connectionCount": 103,
+      "channelCount": 102,
+      "queueCount": 4
+    },
+    {
+      "name": "node2@localhost",
+      "connectionCount": 0,
+      "channelCount": 0,
+      "queueCount": 3
+    },
+    {
+      "name": "node3@localhost",
+      "connectionCount": 0,
+      "channelCount": 0,
+      "queueCount": 2
+    }
+  ],
+  "vhosts": [
+    {
+      "connectionCount": 103,
+      "channelCount": 102,
+      "queueCount": 9,
+      "users": [
+        {
+          "name": "USER1",
+          "connectionCount": 50,
+          "channelCount": 50
+        },
+        {
+          "name": "LOG",
+          "connectionCount": 10,
+          "channelCount": 10
+        },
+        {
+          "name": "USER2",
+          "connectionCount": 5,
+          "channelCount": 5
+        },
+        {
+          "name": "USER3",
+          "connectionCount": 10,
+          "channelCount": 10
+        },
+        {
+          "name": "guest",
+          "connectionCount": 1,
+          "channelCount": 0
+        },
+        {
+          "name": "USER4",
+          "connectionCount": 7,
+          "channelCount": 7
+        },
+        {
+          "name": "USER5",
+          "connectionCount": 10,
+          "channelCount": 10
+        },
+        {
+          "name": "USER6",
+          "connectionCount": 10,
+          "channelCount": 10
+        }
+      ],
+      "name": "/"
+    }
+  ],
+  "connectionCount": 103,
+  "channelCount": 102,
+  "queueCount": 9
+}
+```
+
+Next version of this request will allow the administrator to filter out those vhosts and/or user with a number of connections/channels greater than a configurable number. Likewise with the number of queues.
+       
 
  

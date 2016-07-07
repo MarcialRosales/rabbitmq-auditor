@@ -1,6 +1,6 @@
 logging:
   level:
-    io.pivotal.demo.PolicyEnforceService: debug
+    io.pivotal.demo.PolicyEnforceService: info
      
 spring:
   rabbitmq:
@@ -10,7 +10,8 @@ spring:
     admin: http://localhost:15673
     
   profiles:
-    active: PolicyEnforcement,Auditing   
+    active: Reporting,PolicyEnforcement   
+
     
 plan:
   name: _plan
@@ -19,6 +20,8 @@ plan:
   ha-sync-mode: manual  # manual or automatic (default)
   max-message-ttl: 60000
   queue-master-locator: min-masters  # min-masters, client-local(default), random
+  enforce-mode: automatic
+  
 #  max-queue-length: 2000
 #  max-queue-length-bytes: 7000
   

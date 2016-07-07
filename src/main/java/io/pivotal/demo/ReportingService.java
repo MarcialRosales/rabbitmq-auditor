@@ -3,6 +3,7 @@ package io.pivotal.demo;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,9 +11,44 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+
+@Service
+@Profile("Reporting")
+@RestController()
+public class ReportingService {
+
+	private Logger logger = LoggerFactory.getLogger(ReportingService.class);
+	private RabbitAdmin admin;
+	
+	@Autowired
+	public ReportingService(RabbitAdmin admin) {
+		this.admin = admin;
+	}
+	
+	/**
+	 * Produces a report of resource's usage among nodes, vhosts and users. The resources are : connections, channels and queues.
+	 *  
+	 * @param connectionThreshold
+	 * @return
+	 */
+	@RequestMapping(path = "/api/resources/usage")
+	public JsonResourceUsage connectivityReport() {
+		JsonResourceUsage report = new JsonResourceUsage(); 
+		admin.listConnections().stream().forEach(c -> report.take(c));
+		admin.listQueues().stream().forEach(q -> report.take(q));
+		
+		return report;
+	}
+	
+	
+
+}
+
 
 /**
  * Connection/Channel view:
@@ -25,33 +61,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @author mrosales
  *
  */
-@Service
-@Profile("Auditing")
-@RestController("auditor")
-public class AuditorService {
-
-	private Logger logger = LoggerFactory.getLogger(AuditorService.class);
-	private RabbitAdmin admin;
-	
-	@Autowired
-	public AuditorService(RabbitAdmin admin) {
-		this.admin = admin;
-	}
-	
-	@RequestMapping("/connectivityReport")
-	public JsonConnectivityReport connectivityReport() {
-		JsonConnectivityReport report = new JsonConnectivityReport(); 
-		admin.listConnections().stream().forEach(c -> report.take(c));
-		admin.listQueues().stream().forEach(q -> report.take(q));
-		return report;
-	}
-
-}
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonConnectivityReport {
+class JsonResourceUsage {
 	private Map<String, JsonNode> nodes = new HashMap<>(); 
 	private Map<String, JsonVhostReport> vhosts = new HashMap<>();
-	
+	int connectionCount;
+	int channelCount;
+	int queueCount;
 	
 	public void take(JsonConnection connection) {
 		JsonNode node = nodes.get(connection.getNode());
@@ -64,6 +80,9 @@ class JsonConnectivityReport {
 			vhosts.put(connection.getVhost(), vhost = new JsonVhostReport(connection.getVhost()));
 		}
 		vhost.take(connection);
+		connectionCount++;
+		channelCount+=connection.getChannels();
+		
 	}
 	public void take(JsonQueue queue) {
 		JsonNode node = nodes.get(queue.getNode());
@@ -76,12 +95,23 @@ class JsonConnectivityReport {
 			vhosts.put(queue.getVhost(), vhost = new JsonVhostReport(queue.getVhost()));
 		}
 		vhost.take(queue);
+		queueCount++;
 	}
+	
 	public Collection<JsonNode> getNodes() {
 		return nodes.values();
 	}
 	public Collection<JsonVhostReport> getVhosts() {
 		return vhosts.values();
+	}
+	public int getConnectionCount() {
+		return connectionCount;
+	}
+	public int getChannelCount() {
+		return channelCount;
+	}
+	public int getQueueCount() {
+		return queueCount;
 	}
 }
 
@@ -153,6 +183,7 @@ class JsonUserReport {
 class JsonNode {
 	String name;
 	int connectionCount;
+	int channelCount;
 	int queueCount;
 	
 	JsonNode(String name) {
@@ -160,6 +191,7 @@ class JsonNode {
 	}
 	public void take(JsonConnection connection) {
 		connectionCount++;
+		channelCount+=connection.getChannels();
 	}
 	public void take(JsonQueue queue) {
 		queueCount++;
@@ -169,6 +201,9 @@ class JsonNode {
 	}
 	public int getConnectionCount() {
 		return connectionCount;
+	}
+	public int getChannelCount() {
+		return channelCount;
 	}
 	public int getQueueCount() {
 		return queueCount;
