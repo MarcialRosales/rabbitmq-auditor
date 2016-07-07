@@ -78,7 +78,7 @@ On this mode, the Policy Enforcer will:
   - Enforce the configured plan across new created vhosts while Policy enforcer is running
   - Enforce the configured plan when a policy changes (except for policies on the root vhost) 
   
-To enable automatic policy enforcement, edit application.yml and set this property ``plan.enforce-mode: automatic`` or pass the following JVM parameter ``-DPOLICYENFORCER_MODE=automatic``. 
+To enable automatic policy enforcement, edit application.yml and set this property ``plan.enforce-mode: automatic`` or pass the following JVM parameter ``-DPLAN_ENFORCE_MODE=automatic``. 
 
 <b>Manual Policy Enforcer</b></p>
 On this mode, the Policy Enforcer will only intervene when the administrator requests it. This means that a user can create a not compliant policy. It also means vhosts are not automatically created without a compliant policy. It is the responsibility of the administrator to enforce them.  
