@@ -4,13 +4,14 @@ logging:
      
 spring:
   rabbitmq:
-    addresses: localhost:5672
+    addresses: localhost:5672, localhost:5673, localhost:5674
     username: guest
     password: guest
     admin: http://localhost:15673
     
   profiles:
     active: Reporting,PolicyEnforcement   
+
 
     
 plan:
