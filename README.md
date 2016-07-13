@@ -123,6 +123,7 @@ HTTP/1.1 200 OK
   "uncompliantVhostsCount": 1
 }
 ```
+This means there are 3 vhosts and one of them, `test1`, has no policy's plan (`_plan`) and another vhost, `test2`, has some policies which are not compliant according to the service plan.  
 
 * Get the current plan 
 
