@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class JsonPermission {
+	String vhost;
 	String configure = ".*";
 	String write = ".*";
 	String read = ".*";
@@ -39,4 +40,11 @@ public class JsonPermission {
 		this.read = read;
 	}
 	
+	public String getVhost() {
+		return vhost;
+	}
+	public void setVhost(String vhost) {
+		this.vhost = vhost;
+	}
+
 }

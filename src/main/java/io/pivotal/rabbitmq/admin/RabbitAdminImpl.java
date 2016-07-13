@@ -72,7 +72,21 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		return String.valueOf(auth.getPrincipal());
 	}
 
+	private ParameterizedTypeReference<List<JsonPermission>> JsonPermissionList = new ParameterizedTypeReference<List<JsonPermission>>() {};
+
 	
+	@Override
+	public List<JsonPermission> listPermissions(String user) {
+		HttpEntity<String> request = new HttpEntity<String>(getHttpHeaders());
+		URI uri = buildURI("/api/users").pathSegment(user, "permissions").build(true).toUri();
+
+		ResponseEntity<List<JsonPermission>> connectionResponse = restTemplate.exchange(uri
+				, HttpMethod.GET, request, JsonPermissionList);
+		List<JsonPermission> permissions = connectionResponse.getBody();
+		return permissions;
+	}
+
+
 	private ParameterizedTypeReference<List<JsonNode>> NodeInfoList = new ParameterizedTypeReference<List<JsonNode>>() {};
 
 	@Override

@@ -42,6 +42,7 @@ import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
@@ -49,19 +50,15 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
 
+import io.pivotal.rabbitmq.admin.JsonPermission;
 import io.pivotal.rabbitmq.admin.JsonPolicy;
 import io.pivotal.rabbitmq.admin.JsonVhost;
 import io.pivotal.rabbitmq.admin.RabbitAdmin;
 
 /**
- * policy: { enforce: { max-length-bytes: 1000000, max-length: 10000,
- * message-ttl: 60000 }, permissions: [ permitAll: true, { ha-mode: all, permit:
- * false }, { ha-mode: nodes, permit: false }, { ha-mode: exactly, ha-params:2,
- * permit: true }, ] }
  * 
  * @author mrosales
  *
@@ -92,6 +89,32 @@ public class PolicyEnforceService {
 		return plan.buildPolicy();
 	}
 
+	protected String getCurrentUser() {
+		SecurityContext ctx = SecurityContextHolder.getContext();
+		Authentication auth = ctx.getAuthentication();
+		return String.valueOf(auth.getPrincipal());
+	}
+
+	
+	public VHostRecorder grantAccessToAllVhosts() {
+		VHostRecorder vhostRecorder = new VHostRecorder();
+		
+		// find all the vhosts for which this user has no permissions and assign permission
+		Map<String, JsonPermission> permissions = admin.listPermissions(getCurrentUser()).stream().collect(Collectors.toMap(JsonPermission::getVhost, p -> p));
+		List<JsonVhost> grantToVhosts = admin.listVhosts().stream().filter(v -> !permissions.containsKey(v.getName())).collect(Collectors.toList());
+		grantToVhosts.forEach(v -> {
+			try {
+				admin.addThisUserToVhost(v.getName());
+				vhostRecorder.add(v.getName());
+			} catch (Exception e) {
+				logger.error("Failed to grant access to vhost {}. Reason: {}", v.getName(), e.getMessage());
+			}	
+		});
+		return vhostRecorder;
+		
+	}
+	
+	
 	/**
 	 * 
 	 * Template policies 1) HA ha.* { ha-mode: exactly, ha-params: 2,
@@ -124,6 +147,16 @@ public class PolicyEnforceService {
 			}
 		}
 	}
+	
+	public void grantAccess(String vhost) {
+		try {
+			// First we need to grant this user access to the new vhosts 
+			admin.addThisUserToVhost(vhost);
+		} catch (Exception e) {
+			logger.error("Failed to grant access to vhost {}. Reason: {}", vhost, e.getMessage());
+
+		}	
+	}
 
 	/**
 	 * Make sure that at least the policy plan exists on the new vhost.
@@ -131,13 +164,6 @@ public class PolicyEnforceService {
 	 * @param event
 	 */
 	public void ensurePolicyPlanExistsOnVhost(String vhost) {
-
-		// Make sure this user (admin) has permissions on the vhost
-		try {
-			admin.addThisUserToVhost(vhost);
-		} catch (Exception e) {
-			logger.error("Failed to add THIS user to vhost {}. Reason:{}", vhost, e.getMessage());
-		}
 
 		JsonPolicy policy = null;
 		try {
@@ -162,7 +188,7 @@ public class PolicyEnforceService {
 		PlanComplianceReport report = new PlanComplianceReport();
 
 		logger.info("Checking policy plan {}", policyPlan);
-
+		
 		List<JsonPolicy> policies = admin.listPolicies().stream().filter(p -> !ROOT_VHOST.equals(p.getVhost()))
 				.collect(Collectors.toList());
 		Map<String, List<JsonPolicy>> policiesByVhost = policies.stream()
@@ -190,19 +216,13 @@ public class PolicyEnforceService {
 
 		return report;
 	}
-
-	public EnforcedPlanReport enforcePlan(String vhost) {
+	
+	public VHostRecorder enforcePlan(String vhost) {
 		final JsonPolicy policyPlan = plan.buildPolicy();
 		policyPlan.setVhost(vhost);
 		
-		EnforcedPlanReport report = new EnforcedPlanReport(vhost);
+		VHostRecorder report = new VHostRecorder(vhost);
 
-		try {
-			admin.addThisUserToVhost(vhost);
-		} catch (IOException e1) {
-			logger.error("Enablet to add this user to vhost", e1);
-			throw new RuntimeException(e1);
-		}
 		List<JsonPolicy> policies = admin.listPolicies(vhost);
 		if (policies.isEmpty()) {
 			try {
@@ -228,7 +248,6 @@ public class PolicyEnforceService {
 	public void deletePlan() {
 		admin.listPolicies().stream().filter(p -> p.getName().equals(plan.getName())).forEach(p -> {
 			try {
-				admin.addThisUserToVhost(p.getVhost());
 				admin.deletePolicy(p);
 			} catch (Exception e) {
 				logger.error("Failed to remove policy plan {} from vhost {} due to {}", plan.getName(), p.getVhost(),
@@ -239,7 +258,6 @@ public class PolicyEnforceService {
 
 	public void deletePlan(String vhost) {
 		try {
-			admin.addThisUserToVhost(vhost);
 			admin.deletePolicy(vhost, plan.getName());
 		} catch (Exception e) {
 			logger.error("Failed to remove policy plan {} from vhost {} due to {}", plan.getName(), vhost,
@@ -247,9 +265,9 @@ public class PolicyEnforceService {
 		}
 	}
 
-	public EnforcedPlanReport enforcePlan() {
+	public VHostRecorder enforcePlan() {
 		JsonPolicy policyPlan = plan.buildPolicy();
-		EnforcedPlanReport report = new EnforcedPlanReport();
+		VHostRecorder report = new VHostRecorder();
 
 		logger.info("Applying or checking policy plan {}", policyPlan);
 		List<JsonPolicy> policies = admin.listPolicies().stream().filter(p -> !ROOT_VHOST.equals(p.getVhost()))
@@ -283,7 +301,7 @@ public class PolicyEnforceService {
 			logger.trace("Found vhost {} without policy plan or not compliant", vhost.getName());
 			try {
 				enforcePolicy(policyPlan);
-				report.enforced(vhost.getName());
+				report.add(vhost.getName());
 			} catch (Exception e) {
 				logger.error("Failed to apply policy plan {} to vhost {} due to {}", policyPlan.getName(),
 						policyPlan.getVhost(), e.getMessage());
@@ -296,7 +314,7 @@ public class PolicyEnforceService {
 				logger.trace("Found policy {}|{} not compliant with policy plan {}", p.getVhost(), p.getName(),
 						policyPlan.getName());
 				enforcePolicy(p);
-				report.enforced(p.getVhost());
+				report.add(p.getVhost());
 			} catch (Exception e) {
 				logger.error("Failed to enforce policy plan {} to vhost {} due to {}", policyPlan.getName(),
 						policyPlan.getVhost(), e.getMessage());
@@ -308,10 +326,6 @@ public class PolicyEnforceService {
 
 	private void enforcePolicy(JsonPolicy policy) throws IOException {
 		plan.enforce(policy);
-
-		// ensure this user is a user of the vhost so that we can operate on the
-		// vhost
-		admin.addThisUserToVhost(policy.getVhost());
 
 		if (policy.hasEmptyDefinition()) {
 			admin.deletePolicy(policy);
@@ -394,7 +408,6 @@ class VHostCreatedEvent {
 @Profile("PolicyEnforcement")
 @EnableRabbit
 class AutomaticPolicyEnforcerConfig {
-	private Logger logger = LoggerFactory.getLogger(AutomaticPolicyEnforcer.class);
 	static final String auditPolicyQueue = "policyEnforcer";
 
 	@Bean
@@ -509,7 +522,7 @@ class AutomaticPolicyEnforcer implements CommandLineRunner {
 
 	public void handleVHostCreatedEvent(String vhost) {
 		logger.debug("Detected new vhost {}", vhost);
-
+		policyEnforcer.grantAccess(vhost);
 		policyEnforcer.ensurePolicyPlanExistsOnVhost(vhost);
 	}
 
@@ -538,25 +551,31 @@ class PolicyEnforcerRestEndpoint {
 	@Autowired
 	PolicyEnforceService policyEnforcer;
 
+	@RequestMapping(value = "plan/vhosts/grantAccess", method = RequestMethod.POST)
+	public VHostRecorder grantAccessToAllVhosts() {
+		return policyEnforcer.grantAccessToAllVhosts();
+	}
+	
+	
 	@RequestMapping("plan/uncompliantVhosts")
 	public PlanComplianceReport findUncompliantVHosts() {
 		return policyEnforcer.findUncompliantVHosts();
 	}
 
 	@RequestMapping(value = "plan/{vhost}/enforce", method = RequestMethod.POST)
-	public EnforcedPlanReport enforcePlan(@PathVariable String vhost) {
+	public VHostRecorder enforcePlan(@PathVariable String vhost) {
 		return policyEnforcer.enforcePlan(vhost);
 	}
 
 	@RequestMapping(value = "plan/enforce", method = RequestMethod.POST)
-	public Callable<EnforcedPlanReport> enforcePlan() {
+	public Callable<VHostRecorder> enforcePlan() {
 		return () -> {
 			return asyncEnforcePlan().get();
 		};
 	}
 
-	private Future<EnforcedPlanReport> asyncEnforcePlan() {
-		return new AsyncResult<EnforcedPlanReport>(policyEnforcer.enforcePlan());
+	private Future<VHostRecorder> asyncEnforcePlan() {
+		return new AsyncResult<VHostRecorder>(policyEnforcer.enforcePlan());
 	}
 
 	@RequestMapping(value = "plan")
@@ -597,18 +616,18 @@ class AuthenticationManagerImpl implements AuthenticationManager {
 
 }
 
-class EnforcedPlanReport {
+class VHostRecorder {
 	Set<String> vhosts = new HashSet<>();
 
-	EnforcedPlanReport() {
+	VHostRecorder() {
 
 	}
 
-	EnforcedPlanReport(String vhost) {
+	VHostRecorder(String vhost) {
 		vhosts.add(vhost);
 	}
 
-	void enforced(String vhost) {
+	void add(String vhost) {
 		vhosts.add(vhost);
 	}
 
