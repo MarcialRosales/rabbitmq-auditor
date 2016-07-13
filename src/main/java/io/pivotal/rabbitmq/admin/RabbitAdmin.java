@@ -11,6 +11,7 @@ public interface RabbitAdmin {
 	List<JsonConnection> listConnections();
 	List<JsonVhost> listVhosts();
 	List<JsonPolicy> listPolicies();
+	List<JsonPolicy> listPolicies(String vhost);
 	List<JsonQueue> listQueues();
 	List<JsonQueue> listQueues(String vhost) throws IOException;
 	int removeConfigureAndWritePermissions(String vhost);

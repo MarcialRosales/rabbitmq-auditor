@@ -138,6 +138,17 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		List<JsonPolicy> policies = connectionResponse.getBody();
 		return policies;
 	}
+	@Override
+	public List<JsonPolicy> listPolicies(String vhost) {
+		
+		HttpEntity<String> request = new HttpEntity<String>(getHttpHeaders());
+		URI uri = buildURI("/api/policies").pathSegment(vhost).build(true).toUri();
+
+		ResponseEntity<List<JsonPolicy>> connectionResponse = restTemplate.exchange(uri
+				, HttpMethod.GET, request, jsonPolicyList);
+		List<JsonPolicy> policies = connectionResponse.getBody();
+		return policies;
+	}
 	private ParameterizedTypeReference<List<JsonQueue>> jsonQueueList = new ParameterizedTypeReference<List<JsonQueue>>() {};
 	@Override
 	public List<JsonQueue> listQueues() {

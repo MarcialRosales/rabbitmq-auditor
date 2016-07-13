@@ -191,15 +191,38 @@ public class PolicyEnforceService {
 		return report;
 	}
 
-	public EnforcedPlanReport enforcePlan(@RequestParam String vhost) {
-		JsonPolicy policyPlan = plan.buildPolicy();
+	public EnforcedPlanReport enforcePlan(String vhost) {
+		final JsonPolicy policyPlan = plan.buildPolicy();
 		policyPlan.setVhost(vhost);
+		
+		EnforcedPlanReport report = new EnforcedPlanReport(vhost);
+
 		try {
-			enforcePolicy(policyPlan);
-			return new EnforcedPlanReport(vhost);
-		} catch (IOException e) {
-			throw new RuntimeException("Unable to enforce policy", e);
+			admin.addThisUserToVhost(vhost);
+		} catch (IOException e1) {
+			logger.error("Enablet to add this user to vhost", e1);
+			throw new RuntimeException(e1);
 		}
+		List<JsonPolicy> policies = admin.listPolicies(vhost);
+		if (policies.isEmpty()) {
+			try {
+				enforcePolicy(policyPlan);
+			} catch (IOException e) {
+				throw new RuntimeException("Unable to enforce policy", e);
+			}	
+		}else {
+			policies.stream().filter(p -> !plan.isCompliant(p)).forEach(p -> {
+				try {
+					logger.trace("Found policy {}|{} not compliant with policy plan {}", p.getVhost(), p.getName(),
+							policyPlan.getName());
+					enforcePolicy(p);
+				} catch (Exception e) {
+					logger.error("Failed to enforce policy plan {} to vhost {} due to {}", policyPlan.getName(),
+							policyPlan.getVhost(), e.getMessage());
+				}
+			});
+		}
+		return report;
 	}
 
 	public void deletePlan() {
