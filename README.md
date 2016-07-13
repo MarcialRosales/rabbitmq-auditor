@@ -85,6 +85,30 @@ On this mode, the Policy Enforcer will only intervene when the administrator req
 
 The Policy Enforcer exposes the following REST-api to help detect not compliant vhosts and to enforce the plan across one or all not compliant vhosts. We need to pass the credentials of the administrator user using HTTP Basic Authentication.
 
+* Grant access to vhosts
+IMPORTANT: In order for our user to be able to list policies or to create or to modify them first we need to grant him access. We need to do this operation every time we create a new vhost (unless we are using `plan.enforce-mode: automatic` which automatically grants the configured user access to the newly created vhost). If we don't grant access to all vhosts, we will not be able to enforce policies or check which policies have been applied.
+ 
+```
+$ curl -X POST -u guest:guest http://localhost:8080/plan/vhosts/grantAccess
+HTTP/1.1 200 OK
+{
+  "vhosts": [
+    "test8",
+    "test7"
+  ],
+  "vhostsCount": 2
+}
+``` 
+If we send the request again it returns an empty list of vhosts.
+```
+HTTP/1.1 200 OK
+{
+  "vhosts": [],
+  "vhostsCount": 0
+}
+```
+
+
 * Get a list of not compliant vhosts:
 
 ```
