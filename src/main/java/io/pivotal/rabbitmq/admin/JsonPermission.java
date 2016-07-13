@@ -1,9 +1,9 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonPermission {
+public class JsonPermission {
 	String configure = ".*";
 	String write = ".*";
 	String read = ".*";

@@ -1,9 +1,11 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-class JsonChannel {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class JsonChannel {
 	String node;
 	String vhost;
 	int prefetchCount;

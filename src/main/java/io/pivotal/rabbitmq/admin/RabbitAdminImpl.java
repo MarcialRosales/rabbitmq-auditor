@@ -1,6 +1,7 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.springframework.web.util.UriUtils;
 
+import com.rabbitmq.http.client.domain.NodeInfo;
 import com.rabbitmq.http.client.domain.UserPermissions;
 
 @Service
@@ -36,7 +38,7 @@ public class RabbitAdminImpl implements RabbitAdmin {
 	
 	public RabbitAdminImpl() {
 		restTemplate = new RestTemplate();
-
+		
 	}
 		
 	
@@ -69,7 +71,22 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		Authentication auth = ctx.getAuthentication();
 		return String.valueOf(auth.getPrincipal());
 	}
+
 	
+	private ParameterizedTypeReference<List<JsonNode>> NodeInfoList = new ParameterizedTypeReference<List<JsonNode>>() {};
+
+	@Override
+	public List<JsonNode> listNodes() {
+		HttpEntity<String> request = new HttpEntity<String>(getHttpHeaders());
+		URI uri = buildURI("/api/nodes").query("columns=name,run_queue,mem_alarm,disk_free_alarm,partitions,msg_store_read_count,msg_store_write_count,io_reopen_count,running,cluster_links").build().toUri();
+		
+		ResponseEntity<List<JsonNode>> connectionResponse = restTemplate.exchange(
+				uri, HttpMethod.GET, request, NodeInfoList);
+		List<JsonNode> channels = connectionResponse.getBody();
+		return channels;
+	}
+
+	private ParameterizedTypeReference<List<JsonChannel>> JsonChannelList = new ParameterizedTypeReference<List<JsonChannel>>() {};
 
 	@Override
 	public List<JsonChannel> listChannels() {
@@ -78,12 +95,12 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		URI uri = buildURI("/api/channels?columns=vhost,message_stats.publish").build().toUri();
 		
 		ResponseEntity<List<JsonChannel>> connectionResponse = restTemplate.exchange(
-				uri, HttpMethod.GET, request,
-				new ParameterizedTypeReference<List<JsonChannel>>() {
-				});
+				uri, HttpMethod.GET, request, JsonChannelList);
 		List<JsonChannel> channels = connectionResponse.getBody();
 		return channels;
 	}
+	private ParameterizedTypeReference<List<JsonVhost>> JsonVhostList = new ParameterizedTypeReference<List<JsonVhost>>() {};
+
 	@Override
 	public List<JsonVhost> listVhosts() {
 		
@@ -91,9 +108,7 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		URI uri = buildURI("/api/vhosts").query("columns=name,message_stats.publish").build().toUri();
 		
 		ResponseEntity<List<JsonVhost>> connectionResponse = restTemplate.exchange(
-				uri, HttpMethod.GET, request,
-				new ParameterizedTypeReference<List<JsonVhost>>() {
-				});
+				uri, HttpMethod.GET, request, JsonVhostList);
 		List<JsonVhost> vhosts = connectionResponse.getBody();
 		return vhosts;
 	}
@@ -135,6 +150,18 @@ public class RabbitAdminImpl implements RabbitAdmin {
 		List<JsonQueue> queues = connectionResponse.getBody();
 		return queues;
 	}
+	@Override
+	public List<JsonQueue> listQueues(String vhost) throws IOException {
+		vhost = UriUtils.encodePathSegment(vhost, "utf-8");
+
+		HttpEntity<String> request = new HttpEntity<String>(getHttpHeaders());
+		URI uri = buildURI("/api/queues").pathSegment(vhost).build(true).toUri();
+
+		ResponseEntity<List<JsonQueue>> connectionResponse = restTemplate.exchange(uri
+				, HttpMethod.GET, request, jsonQueueList);
+		List<JsonQueue> queues = connectionResponse.getBody();
+		return queues;
+	}
 
 	@Override
 	public int removeConfigureAndWritePermissions(String vhost) {
@@ -149,6 +176,7 @@ public class RabbitAdminImpl implements RabbitAdmin {
 	}
 	
 	private void removeUserFromVhost(String vhost, String user) {
+		
 		HttpEntity<String> request = new HttpEntity<String>(getHttpHeaders());
 		URI uri = buildURI("/api/vhosts").pathSegment(vhost).path("/permissions").build(true).toUri();
 		

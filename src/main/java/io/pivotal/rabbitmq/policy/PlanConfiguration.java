@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.policy;
 
 import javax.validation.constraints.Min;
 
@@ -10,6 +10,9 @@ import org.springframework.context.annotation.Configuration;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+
+import io.pivotal.rabbitmq.admin.JsonPolicy;
+import io.pivotal.rabbitmq.admin.JsonPolicyDefinition;
 
 @Configuration
 @EnableConfigurationProperties(PlanProperties.class)

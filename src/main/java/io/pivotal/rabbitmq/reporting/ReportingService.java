@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.reporting;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import io.pivotal.rabbitmq.admin.JsonConnection;
+import io.pivotal.rabbitmq.admin.JsonQueue;
+import io.pivotal.rabbitmq.admin.RabbitAdmin;
 
 
 @Service

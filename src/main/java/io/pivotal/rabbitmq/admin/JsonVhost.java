@@ -1,11 +1,11 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.rabbitmq.http.client.domain.MessageStats;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonVhost {
+public class JsonVhost {
 	String name;
 	MessageStats messageStats;
 	

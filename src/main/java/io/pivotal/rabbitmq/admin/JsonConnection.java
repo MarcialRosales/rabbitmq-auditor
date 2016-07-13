@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
@@ -16,7 +16,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  *
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonConnection {
+public class JsonConnection {
 	int channels;
 	String node;
 	String user;

@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,7 +17,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonQueue {
+public class JsonQueue {
+	String state;
 	long memory;
 	long messages; // it should be ready + unacknoweldged
 	long messagesReady;
@@ -123,6 +124,14 @@ class JsonQueue {
 
 	public void setNode(String node) {
 		this.node = node;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
 	}
 
 	@Override

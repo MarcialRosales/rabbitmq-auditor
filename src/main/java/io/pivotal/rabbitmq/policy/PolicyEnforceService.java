@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.policy;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -40,10 +40,8 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
@@ -54,6 +52,10 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.HttpClientErrorException;
+
+import io.pivotal.rabbitmq.admin.JsonPolicy;
+import io.pivotal.rabbitmq.admin.JsonVhost;
+import io.pivotal.rabbitmq.admin.RabbitAdmin;
 
 /**
  * policy: { enforce: { max-length-bytes: 1000000, max-length: 10000,
@@ -184,7 +186,7 @@ public class PolicyEnforceService {
 		}).forEach(vhost -> report.withoutPlan(vhost.getName()));
 
 		// make sure all other policies are compliant
-		policies.stream().filter(p -> !plan.isCompliant(p)).forEach(p -> report.uncompliant(p.vhost));
+		policies.stream().filter(p -> !plan.isCompliant(p)).forEach(p -> report.uncompliant(p.getVhost()));
 
 		return report;
 	}
@@ -201,9 +203,9 @@ public class PolicyEnforceService {
 	}
 
 	public void deletePlan() {
-		admin.listPolicies().stream().filter(p -> p.name.equals(plan.getName())).forEach(p -> {
+		admin.listPolicies().stream().filter(p -> p.getName().equals(plan.getName())).forEach(p -> {
 			try {
-				admin.addThisUserToVhost(p.vhost);
+				admin.addThisUserToVhost(p.getVhost());
 				admin.deletePolicy(p);
 			} catch (Exception e) {
 				logger.error("Failed to remove policy plan {} from vhost {} due to {}", plan.getName(), p.getVhost(),
@@ -286,7 +288,7 @@ public class PolicyEnforceService {
 
 		// ensure this user is a user of the vhost so that we can operate on the
 		// vhost
-		admin.addThisUserToVhost(policy.vhost);
+		admin.addThisUserToVhost(policy.getVhost());
 
 		if (policy.hasEmptyDefinition()) {
 			admin.deletePolicy(policy);
@@ -507,6 +509,7 @@ class AutomaticPolicyEnforcer implements CommandLineRunner {
 }
 
 @RestController
+@Profile("PolicyEnforcement")
 class PolicyEnforcerRestEndpoint {
 
 	@Autowired
@@ -567,29 +570,6 @@ class AuthenticationManagerImpl implements AuthenticationManager {
 	public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 
 		return new NotEraseableUsernamePasswordAuthenticationToken(authentication);
-	}
-
-}
-
-class NotEraseableUsernamePasswordAuthenticationToken extends UsernamePasswordAuthenticationToken {
-
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 1L;
-
-	public NotEraseableUsernamePasswordAuthenticationToken(Authentication auth) {
-		super(auth.getPrincipal(), auth.getCredentials(), Arrays.asList(new SimpleGrantedAuthority("ROLE_USER")));
-
-	}
-
-	public NotEraseableUsernamePasswordAuthenticationToken(String username, String credentials) {
-		super(username, credentials, Arrays.asList(new SimpleGrantedAuthority("ROLE_USER")));
-	}
-
-	@Override
-	public void eraseCredentials() {
-
 	}
 
 }

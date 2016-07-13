@@ -1,6 +1,9 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
-class JsonVHostInfo {
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class JsonVHostInfo {
 	private String name;
 	private int queueCount;
 	private int connectionCount;

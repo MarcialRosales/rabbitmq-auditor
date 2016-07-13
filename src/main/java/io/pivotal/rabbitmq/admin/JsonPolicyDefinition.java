@@ -1,4 +1,4 @@
-package io.pivotal.demo;
+package io.pivotal.rabbitmq.admin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,7 +11,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
-class JsonPolicyDefinition {
+public class JsonPolicyDefinition {
 	Map<String, Object> definition = new HashMap<>();
 	
 	public static final String HA_MODE = "ha-mode";
