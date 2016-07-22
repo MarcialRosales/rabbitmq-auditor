@@ -22,7 +22,7 @@ plan:
   ha-sync-mode: manual  # manual or automatic (default)
   max-message-ttl: 60000
   queue-master-locator: min-masters  # min-masters, client-local(default), random
-  enforce-mode: automatic
+  enforce-mode: manual
   
 #  max-queue-length: 2000
 #  max-queue-length-bytes: 7000
