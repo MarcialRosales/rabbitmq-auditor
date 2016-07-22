@@ -424,7 +424,7 @@ class AutomaticPolicyEnforcerConfig {
 
 @Component
 @Profile("PolicyEnforcement")
-@ConditionalOnProperty(name = "plan.enforce-mode", havingValue = "automatic")
+@ConditionalOnProperty(name = {"plan.enforce-mode", "PLAN_ENFORCE_MODE"}, havingValue = "automatic")
 class AutomaticPolicyEnforcer implements CommandLineRunner {
 
 	private Logger logger = LoggerFactory.getLogger(AutomaticPolicyEnforcer.class);
